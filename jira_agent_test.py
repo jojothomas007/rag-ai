@@ -1,44 +1,30 @@
 from dotenv import load_dotenv
-from langchain_community.document_loaders import DirectoryLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
-from pinecone import Pinecone, ServerlessSpec
-import os
-from langchain_community.document_loaders import ConfluenceLoader
 from langchain_community.utilities.jira import JiraAPIWrapper
 from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
-import reportlab 
-import cairo
+from langchain.agents import AgentType, initialize_agent
+from huggingface_llm import HuggingfaceLlm
+
+
 index_name = "langchain-doc-index"
+load_dotenv()
 
 def ingest_jira_docs():
     jira = JiraAPIWrapper()
+
+    # # Define your JQL query to search for issues
+    # jql_query = "project = SCRUM AND assignee = currentUser()"
+    # # Retrieve issues using the Jira API wrapper
+    # issues = jira.search(jql_query)
+    # print(issues)
+
     toolkit = JiraToolkit.from_jira_api_wrapper(jira)
 
-    # Search for issues in a specific project 
-    jql_query = "project = \'SCRUM\' AND assignee = currentUser()" 
-    tool = None
-    for the_tool in toolkit.tools:
-        if the_tool.name == 'JQL Query':
-            tool = the_tool
+    hfLlm = HuggingfaceLlm()
+    hfLlm.init_llm()
 
-    # issues = toolkit.tools['JQL Query'](jql_query) 
-    issues = tool(jql_query) 
-    print(issues)
-    context = " ".join([issue['key']['summary'] for issue in issues])
-
-    # split documents
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=600, chunk_overlap=50)
-    docs_split = text_splitter.split_text(context) 
-
-    print(f"going to add {len(docs)} documents to pinecone")
-    # add documents to vector db - if index is not already present, please create it using create_index()
-    pc = Pinecone(api_key = os.environ["PINECONE_API_KEY"])
-    index = pc.Index(index_name)
-    vector_store = PineconeVectorStore(index=index, embedding=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2"))
-    vector_store.add_documents(documents=docs_split)
-
+    agent = initialize_agent(toolkit.get_tools(), hfLlm.get_llm(), agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
+    agent.run("can you fetch the issues assigned to me ?")
+    
 
 if __name__ == "__main__":
     print("Hello world")

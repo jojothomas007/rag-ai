@@ -6,7 +6,8 @@ load_dotenv()
 
 class HuggingfaceLlm:
     def __init__(self):
-        self.llm = None
+        self.llm_chat = None
+        self.llm_endpoint = None
 
     def init_llm(self):
         llm_endpoint = HuggingFaceEndpoint(
@@ -18,7 +19,11 @@ class HuggingfaceLlm:
         do_sample=False,
         repetition_penalty=1.03,
         )
-        self.llm = ChatHuggingFace(llm=llm_endpoint, verbose=True)
+        self.llm_endpoint = llm_endpoint
+        self.llm_chat = ChatHuggingFace(llm=llm_endpoint, verbose=True)
 
     def invoke_llm(self, prompt):
-        return self.llm.invoke(prompt)
+        return self.llm_chat.invoke(prompt)
+    
+    def get_llm(self):
+        return self.llm_endpoint
